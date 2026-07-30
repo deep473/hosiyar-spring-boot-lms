@@ -1,4 +1,4 @@
-package com.hosiyar.lms.common.web;
+package com.hosiyar.lms.common.controller;
 
 import com.hosiyar.lms.common.dto.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;

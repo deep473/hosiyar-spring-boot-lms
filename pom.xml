@@ -44,15 +44,26 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
+        <!-- Flyway split database-specific support out of flyway-core since v10 -
+             this is required for Flyway to recognize MySQL at all, not just for
+             a specific version. -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-mysql</artifactId>
             <scope>runtime</scope>
         </dependency>
+
         <!-- Bean validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Password hashing only, for now - the full spring-boot-starter-security
+             (which would auto-lock every endpoint) is added in chapter 5 -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
         <!-- Actuator (health checks, metrics - observability episode builds on this) -->

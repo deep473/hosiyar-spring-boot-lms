@@ -1,7 +1,7 @@
 /**
- * Users and authentication - roles, JWT issuance/validation.
+ * Users and authentication.
  *
- * Not implemented yet - this package exists from episode 1 onward to show
- * the target module boundary. Filled in during the Users & auth episode.
+ * Registration and password hashing implemented (chapter 4). JWT
+ * issuance/validation and role enforcement land in chapter 5.
  */
 package com.hosiyar.lms.user;
