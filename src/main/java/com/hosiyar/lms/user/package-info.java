@@ -1,7 +1,7 @@
 /**
  * Users and authentication.
  *
- * Registration and password hashing implemented (chapter 4). JWT
- * issuance/validation and role enforcement land in chapter 5.
+ * Registration, password hashing, login, and JWT issuance/validation
+ * implemented (chapters 4-5). Role-based restriction lands in chapter 6.
  */
 package com.hosiyar.lms.user;
