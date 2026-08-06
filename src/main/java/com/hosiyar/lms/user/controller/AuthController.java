@@ -3,6 +3,7 @@ package com.hosiyar.lms.user.controller;
 import com.hosiyar.lms.common.dto.ApiResponse;
 import com.hosiyar.lms.user.dto.AuthResponse;
 import com.hosiyar.lms.user.dto.LoginRequest;
+import com.hosiyar.lms.user.dto.RefreshRequest;
 import com.hosiyar.lms.user.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,5 +24,11 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success(response, "Login successful"));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<AuthResponse>> refresh(@Valid @RequestBody RefreshRequest request) {
+        AuthResponse response = authService.refresh(request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Token refreshed"));
     }
 }

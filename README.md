@@ -76,7 +76,10 @@ video.
 
 | Episode | Topic | Tag | Video |
 |---|---|---|---|
-| 1.1 | Project overview & architecture | _no code this video_ | _link once published_ |
-| 1.2 | Requirements & design — Users & Auth | `ep01.2-users-auth-docs` | _link once published_ |
-| 1.3 | Project bootstrap, shared kernel, local MySQL connection | `ep01.3-bootstrap` | _link once published_ |
+| 1 | Requirements & design — Users & Auth | `video1` | _link once published_ |
+| 2 | Project bootstrap, shared kernel, local MySQL | `video2` | _link once published_ |
+| 3 | Users module — data layer, registration | `video3` | _link once published_ |
+| 4 | Spring Security 7 + JWT authentication | `video4` | _link once published_ |
+| 5 | Role-based access, token refresh, first tests | `video5` | _link once published_ |
+
 

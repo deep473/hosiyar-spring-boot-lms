@@ -16,6 +16,16 @@ import java.util.Date;
 @Service
 public class JwtService {
 
+    // Without this, an access token and a refresh token are structurally
+    // identical - meaning someone could hand an access token to the refresh
+    // endpoint and it would happily work. Tagging each token with its type
+    // lets the refresh endpoint reject anything that isn't a refresh token.
+    public static final String TYPE_ACCESS = "access";
+    public static final String TYPE_REFRESH = "refresh";
+
+    private static final String CLAIM_TYPE = "type";
+    private static final String CLAIM_ROLE = "role";
+
     private final SecretKey secretKey;
     private final long accessTokenExpiryMs;
     private final long refreshTokenExpiryMs;
@@ -31,11 +41,11 @@ public class JwtService {
     }
 
     public String generateAccessToken(User user) {
-        return buildToken(user, accessTokenExpiryMs);
+        return buildToken(user, accessTokenExpiryMs, TYPE_ACCESS);
     }
 
     public String generateRefreshToken(User user) {
-        return buildToken(user, refreshTokenExpiryMs);
+        return buildToken(user, refreshTokenExpiryMs, TYPE_REFRESH);
     }
 
     public long getAccessTokenExpirySeconds() {
@@ -46,23 +56,33 @@ public class JwtService {
         return parseClaims(token).getSubject();
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
+    public String extractTokenType(String token) {
+        return parseClaims(token).get(CLAIM_TYPE, String.class);
+    }
+
+    /**
+     * Valid for authenticating a request. Refresh tokens deliberately fail
+     * this check - they're only good at the refresh endpoint.
+     */
+    public boolean isAccessTokenValid(String token, UserDetails userDetails) {
         try {
             Claims claims = parseClaims(token);
-            return claims.getSubject().equals(userDetails.getUsername())
+            return TYPE_ACCESS.equals(claims.get(CLAIM_TYPE, String.class))
+                    && claims.getSubject().equals(userDetails.getUsername())
                     && claims.getExpiration().after(new Date());
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
 
-    private String buildToken(User user, long expiryMs) {
+    private String buildToken(User user, long expiryMs, String type) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiryMs);
 
         return Jwts.builder()
                 .subject(user.getEmail())
-                .claim("role", user.getRole().name())
+                .claim(CLAIM_ROLE, user.getRole().name())
+                .claim(CLAIM_TYPE, type)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(secretKey)
