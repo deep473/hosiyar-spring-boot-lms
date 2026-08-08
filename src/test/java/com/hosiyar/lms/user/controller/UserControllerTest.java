@@ -1,15 +1,18 @@
 package com.hosiyar.lms.user.controller;
 
-import com.hosiyar.lms.user.security.JwtAuthenticationFilter;
 import com.hosiyar.lms.user.service.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
 
@@ -26,22 +29,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Maps back to the acceptance criteria in
  * docs/prd/module-01-users-auth.md (US-4 and US-5).
  */
-@WebMvcTest(UserController.class)
-@Import({
-        com.hosiyar.lms.user.config.SecurityConfig.class,
-        com.hosiyar.lms.user.security.JwtAuthenticationEntryPoint.class,
-        com.hosiyar.lms.user.security.RestAccessDeniedHandler.class
-})
+@SpringBootTest
+@ActiveProfiles("test")
 class UserControllerTest {
 
     @Autowired
+    private WebApplicationContext webApplicationContext;
+
     private MockMvc mockMvc;
 
     @MockitoBean
     private UserService userService;
 
-    @MockitoBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(SecurityMockMvcConfigurers.springSecurity())
+                .build();
+    }
 
     @Test
     @DisplayName("no token at all gives 401 - we don't know who you are")
