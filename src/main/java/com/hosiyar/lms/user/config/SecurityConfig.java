@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -27,7 +26,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * it, @PreAuthorize is silently ignored - no error, just no protection.
  */
 @Configuration
-@EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -66,6 +64,17 @@ public class SecurityConfig {
                         // rule holds even if some future controller calls it by
                         // another path.
                         .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
+
+                        // "My courses" is scoped by token, so it must be matched
+                        // before the public GET rule below - order matters here.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/courses/me").authenticated()
+                        // The catalogue and individual courses are browsable by
+                        // anyone, logged in or not. Draft visibility is enforced
+                        // in CourseService, not here, because it depends on the
+                        // specific row rather than the path.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/courses", "/api/v1/courses/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses").hasRole("INSTRUCTOR")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

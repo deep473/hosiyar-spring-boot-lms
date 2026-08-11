@@ -1,6 +1,10 @@
 /**
- * Course catalog, lessons and content.
+ * Course catalogue, lessons and content.
  *
- * Not implemented yet - filled in during the Courses episode.
+ * Course creation and catalogue reads implemented (chapter 2). Ownership-based
+ * update/delete and lessons land in chapter 3; file upload in chapter 4.
+ *
+ * This module references users by id only, through the user module's public
+ * UserDirectory interface - never its entity or repository. See ADR-006.
  */
 package com.hosiyar.lms.course;
