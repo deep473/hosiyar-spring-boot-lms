@@ -1,9 +1,11 @@
 package com.hosiyar.lms.course.service;
 
+import com.hosiyar.lms.common.exception.AccessDeniedByOwnershipException;
 import com.hosiyar.lms.common.exception.ResourceNotFoundException;
 import com.hosiyar.lms.course.dto.CourseResponse;
 import com.hosiyar.lms.course.dto.CourseSummaryResponse;
 import com.hosiyar.lms.course.dto.CreateCourseRequest;
+import com.hosiyar.lms.course.dto.UpdateCourseRequest;
 import com.hosiyar.lms.course.entity.Course;
 import com.hosiyar.lms.course.entity.CourseStatus;
 import com.hosiyar.lms.course.repository.CourseRepository;
@@ -85,6 +87,50 @@ public class CourseService {
         }
 
         return toResponse(course, resolveName(course.getInstructorId()));
+    }
+
+    /**
+     * The check this whole chapter is about.
+     *
+     * Loads the course, then refuses if it isn't the caller's - BEFORE
+     * anything is read out of it or written to it. Being an INSTRUCTOR got
+     * you this far; being THIS course's instructor is a separate question,
+     * and one no URL rule can answer, because it depends on the row.
+     *
+     * Skip this and you have an IDOR: any instructor edits any course by
+     * changing the id in the URL.
+     *
+     * Package-private on purpose - LessonService uses it, nothing outside
+     * the module can.
+     */
+    Course requireOwnedCourse(UUID courseId, UUID callerId) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
+
+        if (!course.isOwnedBy(callerId)) {
+            throw new AccessDeniedByOwnershipException("You do not own this course");
+        }
+        return course;
+    }
+
+    @Transactional
+    public CourseResponse update(UUID courseId, UpdateCourseRequest request, UUID callerId) {
+        Course course = requireOwnedCourse(courseId, callerId);
+
+        course.setTitle(request.title());
+        course.setDescription(request.description());
+        course.setStatus(request.status());
+
+        // No explicit save() needed - the entity is managed inside this
+        // transaction, so JPA flushes the changes on commit.
+        return toResponse(course, resolveName(course.getInstructorId()));
+    }
+
+    @Transactional
+    public void delete(UUID courseId, UUID callerId) {
+        Course course = requireOwnedCourse(courseId, callerId);
+        // Lessons go with it - ON DELETE CASCADE in V3's migration.
+        courseRepository.delete(course);
     }
 
     /**

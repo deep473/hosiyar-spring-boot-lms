@@ -68,12 +68,23 @@ public class SecurityConfig {
                         // "My courses" is scoped by token, so it must be matched
                         // before the public GET rule below - order matters here.
                         .requestMatchers(HttpMethod.GET, "/api/v1/courses/me").authenticated()
-                        // The catalogue and individual courses are browsable by
-                        // anyone, logged in or not. Draft visibility is enforced
-                        // in CourseService, not here, because it depends on the
+                        // The catalogue, individual courses and their lesson lists
+                        // are browsable by anyone. Draft visibility is enforced in
+                        // the service layer, not here, because it depends on the
                         // specific row rather than the path.
-                        .requestMatchers(HttpMethod.GET, "/api/v1/courses", "/api/v1/courses/*").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/courses",
+                                "/api/v1/courses/*",
+                                "/api/v1/courses/*/lessons").permitAll()
+
+                        // Writes require the INSTRUCTOR role. Note this is only
+                        // half the story - the role rule cannot tell whether the
+                        // course is THIS instructor's. That check lives in
+                        // CourseService.requireOwnedCourse().
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses").hasRole("INSTRUCTOR")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/courses/**").hasRole("INSTRUCTOR")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/courses/**").hasRole("INSTRUCTOR")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/lessons").hasRole("INSTRUCTOR")
 
                         .anyRequest().authenticated()
                 )

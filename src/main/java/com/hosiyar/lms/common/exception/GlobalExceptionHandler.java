@@ -28,6 +28,16 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
     }
 
+    /**
+     * 403, not 404: the resource exists and we know who the caller is - they
+     * simply don't own it. Note this is a deliberate contrast with an unowned
+     * DRAFT course, which returns 404 so its existence isn't revealed.
+     */
+    @ExceptionHandler(AccessDeniedByOwnershipException.class)
+    public ResponseEntity<ApiError> handleOwnership(AccessDeniedByOwnershipException ex, WebRequest request) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request, null);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, WebRequest request) {
         List<String> details = ex.getBindingResult().getFieldErrors().stream()
