@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -40,6 +41,12 @@ public class SecurityConfig {
                 // Stateless, token-based API - no server-rendered forms, so the
                 // CSRF protection Security 7 enables by default isn't needed here.
                 .csrf(AbstractHttpConfigurer::disable)
+
+                // Picks up the CorsConfigurationSource bean from CorsConfig.
+                // Without this line the bean exists but Spring Security ignores
+                // it, and preflight OPTIONS requests are rejected before the
+                // CORS filter ever runs.
+                .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // Because we configure neither httpBasic nor formLogin, Spring
@@ -76,6 +83,7 @@ public class SecurityConfig {
                                 "/api/v1/courses",
                                 "/api/v1/courses/*",
                                 "/api/v1/courses/*/lessons").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/", "/index.html", "/favicon.ico").permitAll()
 
                         // Writes require the INSTRUCTOR role. Note this is only
                         // half the story - the role rule cannot tell whether the
