@@ -82,8 +82,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/courses",
                                 "/api/v1/courses/*",
-                                "/api/v1/courses/*/lessons").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/", "/index.html", "/favicon.ico").permitAll()
+                                "/api/v1/courses/*/lessons",
+                                "/api/v1/courses/*/lessons/*/file").permitAll()
 
                         // Writes require the INSTRUCTOR role. Note this is only
                         // half the story - the role rule cannot tell whether the
@@ -93,6 +93,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/courses/**").hasRole("INSTRUCTOR")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/courses/**").hasRole("INSTRUCTOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/lessons").hasRole("INSTRUCTOR")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/lessons/*/file").hasRole("INSTRUCTOR")
 
                         .anyRequest().authenticated()
                 )

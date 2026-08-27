@@ -9,7 +9,10 @@ public record LessonResponse(
         String title,
         String content,
         Integer position,
-        String fileKey,
+        String fileName,
+        String contentType,
+        Long fileSize,
+        boolean hasFile,
         Instant createdAt,
         Instant updatedAt
 ) {}

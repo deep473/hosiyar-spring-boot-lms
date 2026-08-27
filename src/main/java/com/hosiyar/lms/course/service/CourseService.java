@@ -2,16 +2,20 @@ package com.hosiyar.lms.course.service;
 
 import com.hosiyar.lms.common.exception.AccessDeniedByOwnershipException;
 import com.hosiyar.lms.common.exception.ResourceNotFoundException;
+import com.hosiyar.lms.common.storage.FileStorage;
 import com.hosiyar.lms.course.dto.CourseResponse;
 import com.hosiyar.lms.course.dto.CourseSummaryResponse;
 import com.hosiyar.lms.course.dto.CreateCourseRequest;
 import com.hosiyar.lms.course.dto.UpdateCourseRequest;
 import com.hosiyar.lms.course.entity.Course;
 import com.hosiyar.lms.course.entity.CourseStatus;
+import com.hosiyar.lms.course.entity.Lesson;
 import com.hosiyar.lms.course.repository.CourseRepository;
+import com.hosiyar.lms.course.repository.LessonRepository;
 import com.hosiyar.lms.user.api.UserDirectory;
 import com.hosiyar.lms.user.api.UserSummary;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -28,12 +33,15 @@ import java.util.stream.Collectors;
  * not UserRepository, not UserService. That's the module boundary being
  * respected in practice rather than just in the docs.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CourseService {
 
     private final CourseRepository courseRepository;
+    private final LessonRepository lessonRepository;
     private final UserDirectory userDirectory;
+    private final FileStorage fileStorage;
 
     @Transactional
     public CourseResponse create(CreateCourseRequest request, UUID instructorId) {
@@ -129,7 +137,22 @@ public class CourseService {
     @Transactional
     public void delete(UUID courseId, UUID callerId) {
         Course course = requireOwnedCourse(courseId, callerId);
-        // Lessons go with it - ON DELETE CASCADE in V3's migration.
+
+        // ON DELETE CASCADE removes the lesson rows, but the database has
+        // never heard of S3. Their files have to be cleaned up here, before
+        // the rows that point at them disappear - otherwise the keys are
+        // gone and the objects are unreachable forever. See ADR-007.
+        lessonRepository.findAllByCourseIdOrderByPositionAsc(courseId).stream()
+                .map(Lesson::getFileKey)
+                .filter(Objects::nonNull)
+                .forEach(key -> {
+                    try {
+                        fileStorage.delete(key);
+                    } catch (RuntimeException e) {
+                        log.warn("Orphaned object left in storage, key={}", key, e);
+                    }
+                });
+
         courseRepository.delete(course);
     }
 

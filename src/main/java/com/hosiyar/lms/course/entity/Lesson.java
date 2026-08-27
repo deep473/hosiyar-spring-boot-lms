@@ -44,8 +44,27 @@ public class Lesson extends BaseEntity {
     private Integer position;
 
     /**
-     * Set in chapter 4, when file upload arrives. Null until then.
+     * Where the bytes live in object storage. Null until a file is uploaded.
+     * The file itself is never stored in this table - see ADR-007.
      */
-    @Column(name = "file_key")
+    @Column(name = "file_key", length = 512)
     private String fileKey;
+
+    /**
+     * The name the instructor's file had on their machine. Kept for display
+     * only - it never influences the storage key, because a client-supplied
+     * filename is untrusted input.
+     */
+    @Column(name = "file_name")
+    private String fileName;
+
+    @Column(name = "content_type", length = 100)
+    private String contentType;
+
+    @Column(name = "file_size")
+    private Long fileSize;
+
+    public boolean hasFile() {
+        return fileKey != null;
+    }
 }
