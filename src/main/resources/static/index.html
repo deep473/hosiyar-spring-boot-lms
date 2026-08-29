@@ -183,8 +183,25 @@
     .lbody b{font-size:14.5px; font-weight:600; display:block}
     .lbody p{margin:3px 0 0; font-size:13px; color:var(--muted); overflow:hidden;
       text-overflow:ellipsis; white-space:nowrap}
-    .lacts{display:flex; gap:6px; flex:none; opacity:0; transition:opacity .18s}
+    .lacts{display:flex; gap:6px; flex:none; opacity:0; transition:opacity .18s; flex-wrap:wrap; justify-content:flex-end}
     .lesson:hover .lacts{opacity:1}
+    .lfile{margin-top:9px}
+    .filechip{display:inline-flex; align-items:center; gap:7px; font-family:inherit;
+      font-size:12px; font-weight:500; color:var(--live-fg); background:var(--live-bg);
+      border:1px solid var(--live-line); padding:5px 11px; border-radius:99px; cursor:pointer;
+      transition:all .15s}
+    .filechip:hover{background:#123528; border-color:#1d5a42}
+    .filechip .fi{font-size:9px}
+    .filechip.empty{color:var(--muted-solid); background:var(--surface-2); border-color:var(--line);
+      cursor:default}
+    .dropzone{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+      padding:34px 20px; border:1.5px dashed var(--line); border-radius:var(--r); cursor:pointer;
+      background:var(--bg-2); transition:all .16s; text-align:center}
+    .dropzone:hover{border-color:var(--primary); background:var(--primary-tint)}
+    .dz-ico{width:40px; height:40px; border-radius:11px; background:var(--surface-3); color:var(--primary);
+      display:grid; place-items:center; font-size:19px; margin-bottom:4px}
+    .dz-main{font-size:14.5px; font-weight:600; color:var(--ink)}
+    .dz-name{font-size:12.5px; color:var(--muted)}
 
     /* ---------- table ---------- */
     .tbl-wrap{border:1px solid var(--line); border-radius:var(--r); overflow:hidden; box-shadow:var(--sh)}
@@ -465,6 +482,29 @@
     <div class="modal-foot">
       <button class="btn ghost" onclick="closeModal('lessonScrim')">Cancel</button>
       <button class="btn primary" id="lm-save" onclick="saveLesson()">Save lesson</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="uploadScrim">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="up-title">Upload a file</h3>
+      <p id="up-sub">mp4, webm, pdf, png or jpg.</p>
+    </div>
+    <div class="modal-body">
+      <label class="dropzone" for="up-input">
+        <div class="dz-ico">↑</div>
+        <div class="dz-main">Choose a file</div>
+        <div class="dz-name" id="up-name">No file chosen</div>
+      </label>
+      <input id="up-input" type="file" style="display:none"
+             accept=".mp4,.webm,.pdf,.png,.jpg,.jpeg"
+             onchange="document.getElementById('up-name').textContent = this.files[0]?.name || 'No file chosen'; document.getElementById('up-save').disabled = !this.files[0];">
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('uploadScrim')">Cancel</button>
+      <button class="btn primary" id="up-save" onclick="doUpload()" disabled>Upload</button>
     </div>
   </div>
 </div>
@@ -768,14 +808,100 @@
   }
 
   function lessonRow(l){
-    const acts = owned() ? `<div class="lacts">
+    // Anyone who can see the lesson can open its file (published courses are
+    // public). The presigned URL is fetched on click, so it's always fresh.
+    const fileChip = l.hasFile
+            ? `<button class="filechip" onclick="openFile('${l.id}')" title="${esc(l.fileName || 'file')}">
+         <span class="fi">▶</span>${esc(shortName(l.fileName))} · ${fmtSize(l.fileSize)}
+       </button>`
+            : (owned() ? `<span class="filechip empty">No file</span>` : '');
+
+    const ownerActs = owned() ? `<div class="lacts">
+      <button class="btn sm" onclick='openUploadModal("${l.id}", ${l.hasFile})'>${l.hasFile ? 'Replace' : 'Upload'}</button>
+      ${l.hasFile ? `<button class="btn sm" onclick="stripFile('${l.id}')">Remove file</button>` : ''}
       <button class="btn sm" onclick='openLessonModal(${JSON.stringify(l).replace(/'/g,"&#39;")})'>Edit</button>
       <button class="btn danger sm" onclick="removeLesson('${l.id}')">Delete</button>
     </div>` : '';
+
     return `<div class="lesson">
     <div class="lpos">${l.position}</div>
-    <div class="lbody"><b>${esc(l.title)}</b><p>${esc(l.content || 'No content yet.')}</p></div>
-    ${acts}</div>`;
+    <div class="lbody">
+      <b>${esc(l.title)}</b>
+      <p>${esc(l.content || 'No content yet.')}</p>
+      ${fileChip ? `<div class="lfile">${fileChip}</div>` : ''}
+    </div>
+    ${ownerActs}</div>`;
+  }
+
+  function shortName(name){
+    if (!name) return 'file';
+    return name.length > 24 ? name.slice(0, 21) + '…' : name;
+  }
+  function fmtSize(bytes){
+    if (!bytes && bytes !== 0) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
+    return (bytes/1024/1024).toFixed(1) + ' MB';
+  }
+
+  /* ---------- file ops ---------- */
+  // Fetches a fresh presigned URL, then opens it. The URL points straight at
+  // S3 - the bytes never pass through our API.
+  async function openFile(lessonId){
+    try {
+      const res = await api(`/courses/${current.id}/lessons/${lessonId}/file`);
+      window.open(res.url, '_blank');
+    } catch (e) { err("Couldn't open the file", e.message); }
+  }
+
+  let uploadLessonId = null;
+  function openUploadModal(lessonId, isReplace){
+    uploadLessonId = lessonId;
+    $('up-title').textContent = isReplace ? 'Replace file' : 'Upload a file';
+    $('up-sub').textContent = isReplace
+            ? 'The current file will be replaced.'
+            : 'mp4, webm, pdf, png or jpg.';
+    $('up-input').value = '';
+    $('up-name').textContent = 'No file chosen';
+    $('up-save').disabled = true;
+    openModal('uploadScrim');
+  }
+
+  async function doUpload(){
+    const input = $('up-input');
+    if (!input.files || !input.files[0]) return err('No file', 'Choose a file first.');
+
+    const form = new FormData();
+    form.append('file', input.files[0]);
+
+    const btn = $('up-save'); busy(btn, true, 'Uploading…');
+    try {
+      // Note: no Content-Type header set by hand - the browser sets the
+      // multipart boundary itself. Setting it manually would break the upload.
+      const headers = {};
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch(`${API}/courses/${current.id}/lessons/${uploadLessonId}/file`, {
+        method: 'POST', headers, body: form
+      });
+      if (!res.ok){
+        const t = await res.text(); let msg = 'Upload failed';
+        try { const p = JSON.parse(t); msg = (p.details?.join(', ')) || p.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      ok('File uploaded', `${input.files[0].name} is attached.`);
+      closeModal('uploadScrim');
+      loadLessons(current.id);
+    } catch (e) { err("Couldn't upload", e.message); }
+    finally { busy(btn, false, 'Upload'); }
+  }
+
+  async function stripFile(lessonId){
+    if (!confirm('Remove the file from this lesson?')) return;
+    try {
+      await api(`/courses/${current.id}/lessons/${lessonId}/file`, { method:'DELETE' });
+      ok('File removed', 'The file was deleted from storage.');
+      loadLessons(current.id);
+    } catch (e) { err("Couldn't remove the file", e.message); }
   }
 
   /* ---------- course write ops ---------- */
