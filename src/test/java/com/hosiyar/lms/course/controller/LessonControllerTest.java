@@ -2,27 +2,36 @@ package com.hosiyar.lms.course.controller;
 
 import com.hosiyar.lms.course.service.LessonService;
 import com.hosiyar.lms.user.security.JwtAuthenticationFilter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Slice test for the security gate around lessons. We're testing the gate -
- * routing, roles, content types - not the business logic behind it, which is
- * covered by LessonServiceTest.
+ * routing, roles - not the business logic behind it, which is covered by
+ * LessonServiceTest.
+ *
+ * MockMvc is built manually with springSecurity() applied. The auto-configured
+ * MockMvc in a @WebMvcTest slice does not reliably run a custom SecurityFilter-
+ * Chain against multipart POST requests, so security would be skipped and every
+ * request would return 200. Building it by hand from the web context wires the
+ * real filter chain in, which is exactly what these tests are checking.
  *
  * Maps to docs/prd/module-02-course-management.md US-6 and US-7.
  */
@@ -35,7 +44,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class LessonControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
@@ -46,6 +54,29 @@ class LessonControllerTest {
 
     private final UUID courseId = UUID.randomUUID();
     private final UUID lessonId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp(WebApplicationContext context) throws Exception {
+        // The real JwtAuthenticationFilter is mocked. A mocked OncePerRequest-
+        // Filter runs its real doFilter(), which delegates to doFilterInternal()
+        // - and the mock's doFilterInternal does nothing, so it never calls
+        // chain.doFilter() and the request halts inside the filter (every test
+        // would see an empty 200). Stub doFilterInternal to pass straight
+        // through. These tests exercise the authorization rules, not token
+        // parsing, which is covered separately at the service layer.
+        org.mockito.Mockito.doAnswer(invocation -> {
+                    jakarta.servlet.http.HttpServletRequest req = invocation.getArgument(0);
+                    jakarta.servlet.http.HttpServletResponse res = invocation.getArgument(1);
+                    jakarta.servlet.FilterChain chain = invocation.getArgument(2);
+                    chain.doFilter(req, res);
+                    return null;
+                }).when(jwtAuthenticationFilter)
+                .doFilter(any(), any(), any());
+
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(springSecurity())
+                .build();
+    }
 
     @Test
     @DisplayName("uploading a file without a token gives 401")
