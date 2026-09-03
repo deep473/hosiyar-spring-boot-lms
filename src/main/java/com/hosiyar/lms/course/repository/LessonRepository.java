@@ -11,6 +11,9 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
     List<Lesson> findAllByCourseIdOrderByPositionAsc(UUID courseId);
 
+    /** Total lessons in a course - used for course-completion percentage. */
+    int countByCourseId(UUID courseId);
+
     /**
      * Looks a lesson up by BOTH its own id and its parent course id.
      *
